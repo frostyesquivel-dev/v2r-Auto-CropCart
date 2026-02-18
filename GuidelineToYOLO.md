@@ -17,7 +17,12 @@ to check what your source is for cameras used on usb connections, do this lne of
 ```bash
 v4l2-ctl --list-devices
 ```
-
+```bash
+source/bin/activate
+```
+cd /home/jonahesq/ultralytics
+```
+python stable_dual.py
 
 ```bash
 yolo train model=yolo11n.pt data="/home/jonahesq/ultralytics/CROPCART=aerial-data-3/data.yaml" epochs=50 imgsz=416 batch=16 device=cpu
