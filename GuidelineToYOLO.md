@@ -18,7 +18,7 @@ to check what your source is for cameras used on usb connections, do this lne of
 v4l2-ctl --list-devices
 ```
 ```bash
-source/bin/activate
+source venv/bin/activate
 ```
 cd /home/jonahesq/ultralytics
 ```
