@@ -1,0 +1,1 @@
+```yolo segment train data=/home/jonahesq/ultralytics/CROPCART=aerial-data-3/data.yaml model=yolo11n-seg.pt epochs=30 imgsz=320
