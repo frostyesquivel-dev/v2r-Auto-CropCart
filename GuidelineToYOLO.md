@@ -27,3 +27,4 @@ python stable_dual.py
 ```bash
 yolo train model=yolo11n.pt data="/home/jonahesq/ultralytics/CROPCART=aerial-data-3/data.yaml" epochs=50 imgsz=416 batch=16 device=cpu
 ```
+to stop program "kill 1461"
