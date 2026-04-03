@@ -1,3 +1,9 @@
 ```bash 
+source venv/bin/activate
+
+```bash
+cd /home/jonahesq/ultralytics
+
+```bash
 yolo3cam.py
 
