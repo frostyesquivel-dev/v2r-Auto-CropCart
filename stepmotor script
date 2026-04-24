@@ -1,0 +1,51 @@
+// Stepper Pin Definitions (Common Anode)
+#define PUL_PIN 3
+#define DIR_PIN 4
+
+void setup() {
+  pinMode(PUL_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  digitalWrite(PUL_PIN, HIGH); // Off in Common Anode
+  digitalWrite(DIR_PIN, HIGH);
+}
+
+void overdriveMove(int outputRotations, bool forward) {
+  digitalWrite(DIR_PIN, forward ? LOW : HIGH);
+  delay(5);
+
+  // 10:1 reducer + 400 steps/rev = 4000 pulses per 1 output turn
+  long totalSteps = (long)outputRotations * 4000; 
+  
+  // Acceleration settings
+  int startDelay = 500; // Starting speed (microseconds)
+  int cruiseDelay = 80; // High speed (lower = faster)
+  long rampSteps = 800; // Steps spent speeding up
+
+  for (long i = 0; i < totalSteps; i++) {
+    int currentDelay;
+
+    // Acceleration Ramp
+    if (i < rampSteps) {
+      currentDelay = map(i, 0, rampSteps, startDelay, cruiseDelay);
+    } 
+    // Deceleration Ramp
+    else if (i > (totalSteps - rampSteps)) {
+      currentDelay = map(i, totalSteps - rampSteps, totalSteps, cruiseDelay, startDelay);
+    } 
+    else {
+      currentDelay = cruiseDelay;
+    }
+
+    // Generate Pulse
+    digitalWrite(PUL_PIN, LOW);
+    delayMicroseconds(currentDelay);
+    digitalWrite(PUL_PIN, HIGH);
+    delayMicroseconds(currentDelay);
+  }
+}
+
+void loop() {
+  // Move 5 full output rotations
+  overdriveMove(5, true); 
+  delay(2000);
+}
