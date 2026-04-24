@@ -1,0 +1,28 @@
+import serial
+import time
+
+# Setup connection
+ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+time.sleep(2) 
+
+# Run exactly twice
+for i in range(2):
+    print(f"Starting Trigger #{i+1}")
+    
+    # Send the signal
+    ser.write(b'1')
+    
+    # Wait for the 3-second movement to finish
+    print("Moving...")
+    time.sleep(3) 
+    
+    # If this is the first trigger, pause for 5 seconds before the next one
+    if i == 0:
+        print("First move done. Pausing for 5 seconds...")
+        time.sleep(5)
+    else:
+        print("Second move done. Sequence complete.")
+
+# Final safety shutdown
+ser.close()
+print("Script finished. Connection closed.")
