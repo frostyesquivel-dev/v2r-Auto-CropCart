@@ -1,0 +1,92 @@
+// Pin Definitions
+#define PUL_PIN 3
+#define DIR_PIN 4
+#define LEFT_WHEEL_PWM 5   
+#define RIGHT_WHEEL_PWM 6  
+
+int slowSpeed = 15; 
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(PUL_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  pinMode(LEFT_WHEEL_PWM, OUTPUT);
+  pinMode(RIGHT_WHEEL_PWM, OUTPUT);
+  
+  // Set initial states for Common Anode
+  digitalWrite(PUL_PIN, HIGH); 
+  digitalWrite(DIR_PIN, HIGH);
+  
+  analogWrite(LEFT_WHEEL_PWM, 0);
+  analogWrite(RIGHT_WHEEL_PWM, 0);
+}
+
+void overdriveMove(int outputRotations, bool forward) {
+  digitalWrite(DIR_PIN, forward ? LOW : HIGH);
+  delay(100); 
+
+  // 10:1 reducer + 400 steps/rev = 4000 pulses per 1 output turn
+  long totalSteps = (long)outputRotations * 4000; 
+  
+  int startDelay = 800;  
+  int cruiseDelay = 200; 
+  long rampSteps = 1000; 
+
+  for (long i = 0; i < totalSteps; i++) {
+    int currentDelay;
+    if (i < rampSteps) {
+      currentDelay = map(i, 0, rampSteps, startDelay, cruiseDelay);
+    } 
+    else if (i > (totalSteps - rampSteps)) {
+      currentDelay = map(i, totalSteps - rampSteps, totalSteps, cruiseDelay, startDelay);
+    } 
+    else {
+      currentDelay = cruiseDelay;
+    }
+
+    digitalWrite(PUL_PIN, LOW);
+    delayMicroseconds(currentDelay);
+    digitalWrite(PUL_PIN, HIGH);
+    delayMicroseconds(currentDelay);
+  }
+}
+
+void moveWheels(bool state) {
+  if (state) {
+    analogWrite(LEFT_WHEEL_PWM, slowSpeed);
+    analogWrite(RIGHT_WHEEL_PWM, slowSpeed);
+  } else {
+    analogWrite(LEFT_WHEEL_PWM, 0);
+    analogWrite(RIGHT_WHEEL_PWM, 0);
+  }
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    char cmd = Serial.read();
+    if (cmd == '1') {
+      // STARTUP: Brief wait
+      delay(1000); 
+
+      // ACTION 1: Move forward
+      moveWheels(true);
+      delay(3000); 
+      
+      // STOP WHEELS
+      moveWheels(false);
+      
+      // --- THE 6 SECOND DELAY BETWEEN ACTIONS ---
+      Serial.println("Action 1 complete. Waiting 6 seconds...");
+      delay(6000); 
+
+      // ACTION 2: Stepper Sequence (+2, -4, +2)
+      overdriveMove(2, true);
+      delay(800);
+      overdriveMove(4, false);
+      delay(800);
+      overdriveMove(2, true);
+
+      Serial.println("Sequence Complete");
+    }
+  }
+}
