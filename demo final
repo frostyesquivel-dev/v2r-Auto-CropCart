@@ -1,0 +1,80 @@
+```bash python
+  python demo11.py
+
+
+
+
+  ```bash c++
+
+#define M1_PWM 6
+#define M1_DIR 23
+#define M2_PWM 5
+#define M2_DIR 22
+#define PUL_PIN 3
+#define DIR_PIN 4
+
+int targetSpeed = 55; 
+int rampDelay = 10; 
+
+void stopMotors() {
+  analogWrite(M1_PWM, 0);
+  analogWrite(M2_PWM, 0);
+}
+
+void driveForward() {
+  digitalWrite(M1_DIR, LOW);
+  digitalWrite(M2_DIR, LOW);
+  delay(100);
+
+  // Ramp Up (0.5s)
+  for (int s = 0; s <= targetSpeed; s++) {
+    analogWrite(M1_PWM, s);
+    analogWrite(M2_PWM, s);
+    delay(rampDelay);
+  }
+  // Ramp Down (0.5s)
+  for (int s = targetSpeed; s >= 0; s--) {
+    analogWrite(M1_PWM, s);
+    analogWrite(M2_PWM, s);
+    delay(rampDelay);
+  }
+  stopMotors();
+}
+
+void overdriveMove(int outputRotations, bool forward) {
+  digitalWrite(DIR_PIN, forward ? LOW : HIGH);
+  delay(100);
+  long totalSteps = (long)outputRotations * 4000;
+  for (long i = 0; i < totalSteps; i++) {
+    digitalWrite(PUL_PIN, LOW);
+    delayMicroseconds(180);
+    digitalWrite(PUL_PIN, HIGH);
+    delayMicroseconds(180);
+  }
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(M1_PWM, OUTPUT); pinMode(M1_DIR, OUTPUT);
+  pinMode(M2_PWM, OUTPUT); pinMode(M2_DIR, OUTPUT);
+  pinMode(PUL_PIN, OUTPUT); pinMode(DIR_PIN, OUTPUT);
+  stopMotors();
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    char command = Serial.read();
+    if (command == 'F') {
+      driveForward();
+      Serial.println("F_DONE");
+    } 
+    else if (command == 'S') {
+      overdriveMove(2, true);
+      delay(800);
+      overdriveMove(4, false);
+      delay(800);
+      overdriveMove(2, true);
+      Serial.println("S_DONE");
+    }
+  }
+}
