@@ -118,7 +118,7 @@ finally:
 #define DIR_PIN 4
 
 // --- GLOBAL VARIABLES ---
-int targetSpeed = 70;
+int targetSpeed = 80;
 
 // --- HELPER FUNCTIONS ---
 // Must be defined before loop() so the compiler knows they exist
@@ -135,7 +135,7 @@ void overdriveMove(int outputRotations, bool forward) {
   long totalSteps = (long)outputRotations * 4000; 
   int startDelay = 800;  
   int cruiseDelay = 180; 
-  long rampSteps = 925; 
+  long rampSteps = 1000; 
 
   for (long i = 0; i < totalSteps; i++) {
     int currentDelay;
