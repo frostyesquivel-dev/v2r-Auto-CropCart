@@ -2,6 +2,132 @@
   python demo11.py
 
 
+import cv2
+import numpy as np
+import serial
+import time
+import threading
+import os
+from ultralytics import YOLO
+
+# Fix for the Wayland/Qt Warning on Raspberry Pi
+os.environ["QT_QPA_PLATFORM"] = "xcb"
+
+# --- CONFIGURATION ---
+SERIAL_PORT = '/dev/ttyACM0'
+MODEL_PATH = '/home/jonahesq/ultralytics/runs/segment/train5/weights/best_openvino_model/'
+CAMERA_INDICES = [0, 2, 4] 
+SCAN_DURATION = 5   
+DISPLAY_HOLD = 7    
+BOOT_DELAY = 3      
+TOTAL_CYCLES = 4    # Set to 4 cycles
+
+model = YOLO(MODEL_PATH, task="segment")
+
+class CameraStream:
+    def __init__(self, idx):
+        self.cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.ret, self.frame = False, None
+        self.stopped = False
+        self.lock = threading.Lock()
+
+    def start(self):
+        threading.Thread(target=self.update, args=(), daemon=True).start()
+        return self
+
+    def update(self):
+        while not self.stopped:
+            ret, frame = self.cap.read()
+            with self.lock:
+                self.ret, self.frame = ret, frame
+
+    def read(self):
+        with self.lock:
+            return self.ret, self.frame
+
+    def stop(self):
+        self.stopped = True
+        time.sleep(0.1)
+        if self.cap.isOpened():
+            self.cap.release()
+
+try:
+    ser = serial.Serial(SERIAL_PORT, 9600, timeout=1)
+    time.sleep(2)
+
+    print("\n--- SYSTEM INITIALIZED ---")
+    print("Sequence will start automatically in 5 seconds...")
+    for i in range(5, 0, -1):
+        print(f"Starting in {i}...")
+        time.sleep(1)
+
+    for cycle in range(1, TOTAL_CYCLES + 1):
+        print(f"\n>>>> STARTING CYCLE {cycle} OF {TOTAL_CYCLES} <<<<")
+
+        # 1. FORWARD MOVE
+        print("Action: Moving Forward...")
+        ser.write(b'F')
+        time.sleep(3) # Wait for ramp + physical movement
+
+        # 2. CAMERA BOOT & SCAN
+        print(f"Action: Booting Cameras...")
+        streams = [CameraStream(idx).start() for idx in CAMERA_INDICES]
+        time.sleep(BOOT_DELAY) 
+
+        print(f"Action: Scanning and Detecting...")
+        scan_start = time.time()
+        last_display = None
+        while time.time() - scan_start < SCAN_DURATION:
+            processed_frames = []
+            for stream in streams:
+                ret, frame = stream.read()
+                if ret and frame is not None:
+                    results = model.predict(frame, conf=0.25, imgsz=320, verbose=False, half=True)
+                    annotated = results[0].plot(boxes=False, conf=False, labels=True)
+                    processed_frames.append(cv2.resize(annotated, (640, 480)))
+            
+            if len(processed_frames) == len(CAMERA_INDICES):
+                combined = np.hstack(processed_frames)
+                last_display = cv2.resize(combined, (0,0), fx=0.5, fy=0.5)
+                cv2.imshow("Dashboard", last_display)
+            cv2.waitKey(1)
+
+        # 3. DISPLAY HOLD
+        print(f"Action: Holding Dashboard for {DISPLAY_HOLD}s...")
+        hold_start = time.time()
+        while time.time() - hold_start < DISPLAY_HOLD:
+            cv2.waitKey(1)
+        
+        # 4. SHUTDOWN VISION
+        print("Action: Stopping Vision Threads...")
+        for stream in streams: stream.stop()
+        cv2.destroyAllWindows()
+        time.sleep(2)
+
+        # 5. STEPPER MOTOR
+        print("Action: Engaging Stepper Motor...")
+        ser.write(b'S')
+        time.sleep(8) 
+
+        print(f"Cycle {cycle} Complete.")
+        if cycle < TOTAL_CYCLES:
+            print("Waiting 2 seconds before next cycle...")
+            time.sleep(2)
+
+    print("\n--- ALL 4 CYCLES COMPLETE: SYSTEM STANDBY ---")
+
+except Exception as e:
+    print(f"\n[!] Error: {e}")
+finally:
+    if 'ser' in locals(): ser.close()
+    print("Serial port closed safely.")
+
+
+
 
 
   ```bash c++
